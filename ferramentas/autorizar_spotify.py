@@ -7,6 +7,10 @@ Pre-requisitos:
   2. Colar o Client ID em config.json -> "spotify" -> "client_id"
 """
 import sys
+from pathlib import Path
+
+# spotify_api vive em nucleo/ (este script fica em ferramentas/)
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "nucleo"))
 
 import spotify_api
 

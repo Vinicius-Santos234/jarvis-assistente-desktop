@@ -21,7 +21,8 @@ from pathlib import Path
 import numpy as np
 import sounddevice as sd
 
-BASE_DIR = Path(__file__).resolve().parent
+# Raiz do projeto (este arquivo vive em ferramentas/)
+BASE_DIR = Path(__file__).resolve().parent.parent
 SAMPLERATE = 16000
 BLOCKSIZE = 2000
 

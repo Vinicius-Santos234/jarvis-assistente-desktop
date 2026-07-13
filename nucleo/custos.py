@@ -14,8 +14,9 @@ import json
 from datetime import date, timedelta
 from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parent
-CUSTOS_PATH = BASE_DIR / "custos.json"
+# Raiz do projeto (este arquivo vive em nucleo/); runtime fica em dados/
+BASE_DIR = Path(__file__).resolve().parent.parent
+CUSTOS_PATH = BASE_DIR / "dados" / "custos.json"
 CONFIG_PATH = BASE_DIR / "config.json"
 
 CAMBIO_BRL_PADRAO = 5.5  # so para dar uma nocao em reais; ajuste no config

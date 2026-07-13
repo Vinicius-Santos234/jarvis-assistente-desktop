@@ -50,17 +50,17 @@ E em pedidos demorados (pesquisas na web etc.), ele avisa *"Ainda trabalhando ni
 
 ## Confiabilidade e controle (v0.4.2) 🛡️
 - **"Jarvis, cancela"** — aborta um pedido no meio do processamento (também: "pare").
-- **"Jarvis, quanto gastei hoje?"** — ele acompanha o custo da API por dia (`custos.json`) e responde em reais (câmbio em `cerebro.cambio_brl`). Períodos: hoje, ontem, semana, mês, total.
+- **"Jarvis, quanto gastei hoje?"** — ele acompanha o custo da API por dia (`dados/custos.json`) e responde em reais (câmbio em `cerebro.cambio_brl`). Períodos: hoje, ontem, semana, mês, total.
 - **Supervisor** — o `Iniciar Jarvis.bat` sobe um supervisor que **reinicia o Jarvis sozinho se ele cair**.
 - **Iniciar com o Windows** — rode **`Instalar Inicializacao.bat`** uma vez (desfaz com o `Remover Inicializacao.bat`).
 
 ## Memória e aprendizado (v0.4) 💾
 O Jarvis agora **aprende e lembra entre sessões**:
 
-- **Memória** (`memoria.json`) — *"Jarvis, lembra que minha playlist de foco é X"*. Ele também memoriza sozinho o que descobre (caminhos de programas, soluções). Tudo entra no prompt do Claude a cada pedido. *"Jarvis, esquece isso"* remove.
+- **Memória** (`dados/memoria.json`) — *"Jarvis, lembra que minha playlist de foco é X"*. Ele também memoriza sozinho o que descobre (caminhos de programas, soluções). Tudo entra no prompt do Claude a cada pedido. *"Jarvis, esquece isso"* remove.
 - **Aprende com falhas** — se não conseguir abrir um programa, ele **varre o Menu Iniciar** atrás do executável e memoriza o caminho. Se não souber algo, **pesquisa na web** (Bing/DuckDuckGo) e pode ler páginas.
 - **Atalhos aprendidos** — *"Jarvis, quando eu disser 'abra o lol', abre o League of Legends"* → vira comando fixo no `config.json` (instantâneo, sem custo de API) e já vale sem reiniciar.
-- **Habilidades (auto-extensão)** — quando nenhuma ferramenta resolve, ele pode **escrever um script Python** novo em `habilidades/`. ⚠️ **Nada roda sem sua aprovação**: confira o arquivo e diga *"Jarvis, aprovar habilidade"*. Sem isso, o script fica bloqueado.
+- **Habilidades (auto-extensão)** — quando nenhuma ferramenta resolve, ele pode **escrever um script Python** novo em `dados/habilidades/`. ⚠️ **Nada roda sem sua aprovação**: confira o arquivo e diga *"Jarvis, aprovar habilidade"*. Sem isso, o script fica bloqueado.
 
 ## Spotify de verdade (v0.4.1) 🎵
 Com a Web API configurada, *"Jarvis, toca Bohemian Rhapsody"* **dá play direto** (nada de apertar botão), e funcionam por voz: **pausar, continuar, pular, voltar e "que música é essa"**. Pedidos de artista/álbum/playlist também tocam direto.
@@ -68,7 +68,7 @@ Com a Web API configurada, *"Jarvis, toca Bohemian Rhapsody"* **dá play direto*
 **Configurar (uma vez, precisa de conta Premium):**
 1. Crie um app em [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard) → *Create app* → em **Redirect URIs** cole `http://127.0.0.1:8917/callback` → marque **Web API**.
 2. Copie o **Client ID** do app e cole em `config.json` → `"spotify"` → `"client_id"`.
-3. Rode **`Autorizar Spotify.bat`** — o navegador abre, você autoriza, pronto (o token fica em `spotify_token.json` e se renova sozinho).
+3. Rode **`Autorizar Spotify.bat`** — o navegador abre, você autoriza, pronto (o token fica em `dados/spotify_token.json` e se renova sozinho).
 
 Sem configurar, nada quebra: o Jarvis abre a busca como antes. Se o Spotify estiver fechado, ele abre o app e espera antes de dar play.
 
@@ -108,19 +108,31 @@ O Vosk pt-BR não conhece palavras em inglês — "github" virava *"jeito rubi"*
 
 > Atalhos que você ensinar (*"quando eu disser X..."*) aparecem aqui embaixo no `config.json` automaticamente.
 
+## Estrutura de pastas
+```
+Jarvis/
+├── *.bat                → atalhos de uso diário (iniciar, parar, calibrar...)
+├── config.json          → a SUA configuração (crie a partir do config.exemplo.json)
+├── nucleo/              → o código do Jarvis
+├── ferramentas/         → scripts de apoio (gerar vozes, calibrar, autorizar Spotify)
+├── dados/               → o que o Jarvis aprende e gasta (criado em uso; fora do git)
+├── modelo-vosk/         → modelo de fala pt-BR (baixar na instalação)
+├── vozes/  respostas/   → áudios das falas (gerados pelo gerar_vozes.py)
+```
+
 ## Arquivos
-- **`assistente.py`** — o programa principal (palmas + voz + integração do cérebro).
-- **`cerebro.py`** — a IA (Claude + 28 ferramentas: Spotify, YouTube, programas, sites, memória, pesquisa, atalhos, habilidades, gastos, arquivos, edição de documentos, volume, fechar apps e desligar).
-- **`aprendizado.py`** — **(v0.4)** memória, pesquisa web, atalhos e habilidades.
-- **`arquivos.py`** — **(v0.5)** listar, procurar, criar, ler, mover, apagar (Lixeira) e analisar CSV, restrito às suas pastas.
-- **`custos.py`** / **`custos.json`** — **(v0.4.2)** registro do gasto diário com a API.
-- **`supervisor.py`** — **(v0.4.2)** mantém o Jarvis vivo (reinicia se cair).
-- **`spotify_api.py`** — **(v0.4.1)** play direto e controles via Web API (token em `spotify_token.json`).
-- **`memoria.json`** — **(v0.4)** o que o Jarvis aprendeu (criado no primeiro uso; pode editar à mão).
-- **`habilidades/`** — **(v0.4)** scripts que o Jarvis escreveu; `habilidades.json` marca o que está aprovado.
+- **`nucleo/assistente.py`** — o programa principal (palmas + voz + integração do cérebro).
+- **`nucleo/cerebro.py`** — a IA (Claude + 28 ferramentas: Spotify, YouTube, programas, sites, memória, pesquisa, atalhos, habilidades, gastos, arquivos, edição de documentos, volume, fechar apps e desligar).
+- **`nucleo/aprendizado.py`** — **(v0.4)** memória, pesquisa web, atalhos e habilidades.
+- **`nucleo/arquivos.py`** — **(v0.5)** listar, procurar, criar, ler, mover, apagar (Lixeira) e analisar CSV, restrito às suas pastas.
+- **`nucleo/custos.py`** / **`dados/custos.json`** — **(v0.4.2)** registro do gasto diário com a API.
+- **`nucleo/supervisor.py`** — **(v0.4.2)** mantém o Jarvis vivo (reinicia se cair).
+- **`nucleo/spotify_api.py`** — **(v0.4.1)** play direto e controles via Web API (token em `dados/spotify_token.json`).
+- **`dados/memoria.json`** — **(v0.4)** o que o Jarvis aprendeu (criado no primeiro uso; pode editar à mão).
+- **`dados/habilidades/`** — **(v0.4)** scripts que o Jarvis escreveu; `habilidades.json` marca o que está aprovado.
 - **`config.json`** — o que abrir, frases dos comandos, palavras de ativação, sensibilidade, modelo da IA.
-- **`gerar_vozes.py`** — gera as falas do Jarvis (`vozes/` e `respostas/`) com edge-tts. Rode de novo se editar as frases.
-- **`medir_volume.py`** — calibra a sensibilidade das palmas.
+- **`ferramentas/gerar_vozes.py`** — gera as falas do Jarvis (`vozes/` e `respostas/`) com edge-tts. Rode de novo se editar as frases.
+- **`ferramentas/medir_volume.py`** — calibra a sensibilidade das palmas.
 - **`modelo-vosk/`** — modelo de reconhecimento de fala pt-BR (não mexer). O modelo do Whisper baixa sozinho na primeira vez (fica no cache do usuário).
 - **`Iniciar Jarvis.bat`** — inicia em **segundo plano** (sem janela).
 - **`Iniciar Jarvis (console).bat`** — inicia **com janela**, para calibrar (mostra o que ele ouve).
@@ -137,7 +149,7 @@ O Vosk pt-BR não conhece palavras em inglês — "github" virava *"jeito rubi"*
 3. **Configuração** — copie `config.exemplo.json` para **`config.json`** e edite (sites, aplicativos, comandos).
 4. **Vozes do Jarvis** — gere os áudios das falas (`vozes/` e `respostas/`):
    ```
-   C:\Python310\python.exe gerar_vozes.py
+   C:\Python310\python.exe ferramentas\gerar_vozes.py
    ```
 5. **Cérebro (opcional)** — defina a variável de ambiente `ANTHROPIC_API_KEY` para os pedidos livres via Claude. Groq (`GROQ_API_KEY`, transcrição na nuvem) e Spotify são opcionais — veja as seções acima.
 

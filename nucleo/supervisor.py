@@ -24,8 +24,9 @@ import sys
 import time
 from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parent
-ASSISTENTE = BASE_DIR / "assistente.py"
+# Raiz do projeto (este arquivo vive em nucleo/, junto com o assistente)
+BASE_DIR = Path(__file__).resolve().parent.parent
+ASSISTENTE = Path(__file__).resolve().parent / "assistente.py"
 
 # Trava de instancia unica do SUPERVISOR (o assistente tem a dele na 51739)
 PORTA_TRAVA = 51740

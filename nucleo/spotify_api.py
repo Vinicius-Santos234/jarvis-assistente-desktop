@@ -25,8 +25,9 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parent
-TOKEN_PATH = BASE_DIR / "spotify_token.json"
+# Raiz do projeto (este arquivo vive em nucleo/); token fica em dados/
+BASE_DIR = Path(__file__).resolve().parent.parent
+TOKEN_PATH = BASE_DIR / "dados" / "spotify_token.json"
 
 REDIRECT_URI = "http://127.0.0.1:8917/callback"
 PORTA_CALLBACK = 8917

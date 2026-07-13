@@ -28,7 +28,8 @@ import unicodedata
 from collections import Counter
 from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parent
+# Raiz do projeto (este arquivo vive em nucleo/)
+BASE_DIR = Path(__file__).resolve().parent.parent
 CONFIG_PATH = BASE_DIR / "config.json"
 
 # Pastas conhecidas do Windows (GUIDs oficiais) - a API devolve o caminho

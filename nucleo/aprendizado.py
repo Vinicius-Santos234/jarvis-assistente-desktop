@@ -26,9 +26,10 @@ import urllib.request
 from datetime import date
 from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parent
-MEMORIA_PATH = BASE_DIR / "memoria.json"
-HABILIDADES_DIR = BASE_DIR / "habilidades"
+# Raiz do projeto (este arquivo vive em nucleo/); runtime fica em dados/
+BASE_DIR = Path(__file__).resolve().parent.parent
+MEMORIA_PATH = BASE_DIR / "dados" / "memoria.json"
+HABILIDADES_DIR = BASE_DIR / "dados" / "habilidades"
 REGISTRO_PATH = HABILIDADES_DIR / "habilidades.json"
 
 MAX_FATOS = 100  # acima disso, a memoria e podada (resumo ou corte)

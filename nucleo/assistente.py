@@ -57,7 +57,8 @@ from pathlib import Path
 import numpy as np
 import sounddevice as sd
 
-BASE_DIR = Path(__file__).resolve().parent
+# Raiz do projeto (este arquivo vive em nucleo/)
+BASE_DIR = Path(__file__).resolve().parent.parent
 CONFIG_PATH = BASE_DIR / "config.json"
 
 # Trava de instancia unica: o bind desta porta local falha se outra

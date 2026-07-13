@@ -27,7 +27,8 @@ import aprendizado
 import arquivos
 import custos
 
-BASE_DIR = Path(__file__).resolve().parent
+# Raiz do projeto (este arquivo vive em nucleo/)
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 MODELO_PADRAO = "claude-sonnet-5"
 

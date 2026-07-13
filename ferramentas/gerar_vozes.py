@@ -20,7 +20,8 @@ import edge_tts
 import imageio_ffmpeg
 
 VOZ = "pt-BR-AntonioNeural"
-BASE_DIR = Path(__file__).resolve().parent
+# Raiz do projeto (este arquivo vive em ferramentas/)
+BASE_DIR = Path(__file__).resolve().parent.parent
 PASTA_VOZES = BASE_DIR / "vozes"
 PASTA_RESPOSTAS = BASE_DIR / "respostas"
 FFMPEG = imageio_ffmpeg.get_ffmpeg_exe()

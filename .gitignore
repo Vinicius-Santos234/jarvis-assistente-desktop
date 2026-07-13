@@ -2,19 +2,14 @@
 __pycache__/
 *.pyc
 
-# Segredos e dados pessoais (NUNCA subir)
-spotify_token.json
+# Segredos e dados pessoais de runtime (NUNCA subir)
+dados/
 config.json
-memoria.json
-custos.json
-
-# Habilidades geradas pelo proprio Jarvis
-habilidades/
 
 # Modelo de reconhecimento de fala (52 MB - baixar de https://alphacephei.com/vosk/models)
 modelo-vosk/
 
-# Audios gerados pelo gerar_vozes.py (rode-o apos clonar)
+# Audios gerados pelo ferramentas/gerar_vozes.py (rode-o apos clonar)
 vozes/
 respostas/
 
