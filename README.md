@@ -75,3 +75,7 @@ Jarvis/
 - [ ] Timers e lembretes por voz
 - [ ] Luzes inteligentes (aguardando hardware compatível)
 - [ ] **Versão 100% open source e sem custos** — substituir os serviços pagos (Claude, Groq) por modelos abertos rodando localmente, para que qualquer pessoa use o Jarvis completo de graça
+
+## Licença
+
+[MIT](LICENSE) — use, modifique e distribua livremente, mantendo o crédito.
