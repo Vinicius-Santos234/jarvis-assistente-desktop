@@ -1,0 +1,19 @@
+# Dependências do projeto Jarvis (Python 3.10 — C:\Python310)
+# Instalar com:  C:\Python310\python.exe -m pip install -r requirements.txt
+
+anthropic==0.116.0
+edge-tts==7.2.8
+faster-whisper==1.2.1
+imageio-ffmpeg==0.6.0
+numpy==2.2.6
+sounddevice==0.5.5
+vosk==0.3.45
+
+# v0.6 - controle de volume do Windows
+comtypes
+pycaw
+
+# v0.6 - leitura de xlsx, pdf e docx
+openpyxl
+pypdf
+python-docx

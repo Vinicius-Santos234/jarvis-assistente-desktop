@@ -1,0 +1,158 @@
+{
+  "_comentario": "MODELO: copie este arquivo para config.json e edite. Escolha o que acontece ao bater duas palmas ou falar comandos. Caminhos no Windows: use barra dupla \\\\ ou barra simples /",
+
+  "navegador": "chrome",
+
+  "abas_navegador": [
+    "https://github.com/dashboard",
+    "https://mail.google.com"
+  ],
+
+  "aplicativos": [
+    "C:/Users/SEU-USUARIO/AppData/Local/Programs/obsidian/Obsidian.exe",
+    "C:/Users/SEU-USUARIO/AppData/Local/Programs/Microsoft VS Code/Code.exe"
+  ],
+
+  "_audio_info": "Se 'audio_pasta' tiver .wav, o Jarvis sorteia uma fala a cada palma. Se quiser um som fixo, deixe 'audio_pasta' vazio (\"\") e use 'audio'.",
+  "audio_pasta": "vozes",
+  "audio": "C:/Windows/Media/Alarm01.wav",
+
+  "_microfone_info": "ganho_voz amplifica digitalmente o audio do RECONHECIMENTO DE VOZ (nao afeta as palmas). v0.6: com 'agc' ligado (padrao), o ganho se ADAPTA sozinho e ganho_voz vira apenas o TETO - ganho fixo alto saturava a fala com barulho de fundo. agc: false volta ao ganho fixo. Rode 'Medir Voz.bat' para calibrar.",
+  "microfone": {
+    "ganho_voz": 15.0,
+    "agc": true
+  },
+
+  "_vocabulario_info": "Palavras (em geral estrangeiras) que voce costuma falar e o Vosk nao conhece. Usadas em 2 lugares: dica para o Whisper transcrever certo e glossario no prompt do Claude para ele corrigir nomes distorcidos. Adicione as suas!",
+  "vocabulario": [
+    "GitHub", "Spotify", "YouTube", "videogame", "Nintendo Switch",
+    "Vercel", "Obsidian", "VS Code", "Google", "Chrome",
+    "WhatsApp", "Gmail", "Netflix", "Instagram", "Claude"
+  ],
+
+  "_spotify_info": "v0.4.1 - play DIRETO no Spotify (sem apertar nada) + pausar/pular por voz. Requer conta Premium e um app criado em developer.spotify.com/dashboard com Redirect URI http://127.0.0.1:8917/callback. Cole o Client ID abaixo e rode 'Autorizar Spotify.bat' UMA vez. Sem configurar, o Jarvis apenas abre a busca (comportamento antigo).",
+  "spotify": {
+    "ativo": false,
+    "client_id": ""
+  },
+
+  "_arquivos_info": "v0.5 - o cerebro mexe em arquivos SO dentro das pastas do usuario (Desktop, Documentos, Downloads, Imagens, Musicas, Videos). Para liberar outra pasta, adicione o caminho completo em pastas_extras. Apagar vai para a Lixeira; apagar/mover pedem 'Confirma, senhor?'.",
+  "arquivos": {
+    "pastas_extras": []
+  },
+
+  "_cerebro_info": "v0.3 - pedidos livres vao para o Claude (precisa de ANTHROPIC_API_KEY no ambiente e internet). 'ativo: false' volta ao comportamento v0.2. Modelos: claude-sonnet-5 | claude-haiku-4-5 | claude-opus-4-8",
+  "cerebro": {
+    "ativo": true,
+    "modelo": "claude-sonnet-5",
+    "max_historico": 6,
+    "voz": "pt-BR-AntonioNeural",
+    "_cambio_info": "So para o 'quanto gastei?' dar uma nocao em reais (custos.json guarda em dolar).",
+    "cambio_brl": 5.5
+  },
+
+  "_deteccao_info": "v0.6 - analise_espectral: so aceita picos com cara de palma (transiente de banda larga), reduzindo falsos positivos de voz/musica/TV. min_agudos = fracao minima de energia acima de 2 kHz (0 a 1); min_crista = pico/RMS minimo. Rode 'Medir Volume.bat' para ver os valores das SUAS palmas; se elas forem rejeitadas, diminua os dois.",
+  "deteccao": {
+    "limite_volume": 0.40,
+    "intervalo_min_seg": 0.15,
+    "intervalo_max_seg": 1.2,
+    "cooldown_seg": 5.0,
+    "pausa_entre_palmas_seg": 0.25,
+    "analise_espectral": true,
+    "min_agudos": 0.25,
+    "min_crista": 3.0
+  },
+
+  "_voz_info": "Comandos falados. Diga uma 'palavra_ativacao' (ex.: 'Jarvis, abra o navegador' ou so 'Jarvis' e espere o 'Pois nao?'). As 'frases' casam por trecho contido no que foi ouvido (sem acentos). Acoes: abas | apps | tudo | abrir (usa 'alvo') | sair.",
+  "voz": {
+    "ativa": true,
+    "modelo": "modelo-vosk",
+    "_ativacao_info": "O modelo transcreve 'Jarvis' de formas variadas ('james', 'ja disse', 'jardins'...). Alem da lista exata abaixo, ha casamento APROXIMADO automatico: palavras que comecam com 'j', terminam em som de s/z e parecem com 'jarvis' (similaridade_ativacao, 0 a 1 - diminua se ele nao responder, aumente se ativar sozinho). Veja o que ele ouve em [voz] ouvi: no console.",
+    "palavras_ativacao": ["jarvis", "jazz", "chaves"],
+    "similaridade_ativacao": 0.4,
+    "timeout_comando_seg": 15.0,
+    "_conversa_info": "modo_conversa: depois de cada resposta a janela reabre por janela_conversa_seg - da para emendar pedidos sem repetir 'Jarvis'. Diga 'obrigado' para encerrar.",
+    "modo_conversa": true,
+    "janela_conversa_seg": 12.0,
+
+    "_interromper_info": "v0.7 - diga 'Jarvis' POR CIMA da fala dele para corta-la na hora (a escuta abre em seguida). false desliga.",
+    "interromper_fala": true,
+
+    "_confirmacao_info": "Acoes destrutivas (ex.: esquecer da memoria) pedem 'Confirma, senhor?'. Diga sim/confirmo para executar; nao/cancela ou silencio cancelam.",
+    "timeout_confirmacao_seg": 10.0,
+    "_cancelar_info": "Enquanto o cerebro processa um pedido, diga uma destas palavras para abortar ('Jarvis, cancela').",
+    "palavras_cancelar": ["cancela", "cancelar", "cancele", "pare", "para"],
+    "_aviso_info": "v0.5 - em pedidos demorados (pesquisa na web etc.), o Jarvis avisa 'Ainda trabalhando nisso, senhor' a cada tantos segundos, para o silencio nao parecer travamento. 0 desliga.",
+    "aviso_processando_seg": 15.0,
+
+    "_stt_nuvem_info": "v0.5.1 - transcricao na NUVEM (Groq, Whisper large-v3): muito mais precisa que o Whisper local para nomes e ingles, ~1 s, gratis no volume de uso pessoal. Crie a chave em https://console.groq.com/keys e grave no SEU PowerShell: setx GROQ_API_KEY \"gsk_...\" (depois reinicie o Jarvis). So a frase do comando vai para a nuvem (a ativacao 'Jarvis' continua offline); sem chave ou sem internet, cai sozinho para o Whisper local.",
+    "stt_nuvem": {
+      "ativo": true,
+      "modelo": "whisper-large-v3"
+    },
+
+    "_whisper_info": "v0.3.1 - quando nenhum comando fixo casa com o texto do Vosk, a frase e re-transcrita com o Whisper, que entende palavras em ingles (github, spotify, videogame...). A ativacao ('Jarvis') continua com o Vosk. Fallback local da stt_nuvem. 'ativo: false' volta a usar so o Vosk. Modelos: tiny | base | small (melhor, ~1-2 s por frase).",
+    "whisper": {
+      "ativo": true,
+      "modelo": "small"
+    },
+
+    "_correcoes_info": "Fallback quando o Whisper esta desligado/indisponivel: mapeia transcricoes erradas do Vosk para a palavra certa, antes de casar comandos e de mandar ao Claude. Veja o que ele ouve no 'Iniciar Jarvis (console).bat'. Ex.: \"guite rabe\": \"github\"",
+    "correcoes": {},
+
+    "respostas": {
+      "ativacao": "respostas/pois-nao.wav",
+      "nao_entendi": "respostas/nao-entendi.wav",
+      "um_momento": "respostas/um-momento.wav",
+      "ainda_trabalhando": "respostas/ainda-trabalhando.wav",
+      "erro_cerebro": "respostas/erro-cerebro.wav",
+      "cancelado": "respostas/cancelado.wav",
+      "feito": "respostas/feito.wav",
+      "acao_falhou": "respostas/acao-falhou.wav"
+    },
+
+    "comandos": [
+      {
+        "frases": ["abra o navegador", "abre o navegador", "abrir navegador", "navegador"],
+        "acao": "abas",
+        "resposta": "respostas/abrindo-navegador.wav"
+      },
+      {
+        "frases": ["abra os aplicativos", "abrir aplicativos", "aplicativos", "programas"],
+        "acao": "apps",
+        "resposta": "respostas/abrindo-aplicativos.wav"
+      },
+      {
+        "frases": ["abra tudo", "abrir tudo", "bom dia", "modo trabalho", "iniciar protocolos"],
+        "acao": "tudo",
+        "resposta": "respostas/iniciando-tudo.wav"
+      },
+      {
+        "frases": ["abra o obsidian", "obsidian"],
+        "acao": "abrir",
+        "alvo": "C:/Users/SEU-USUARIO/AppData/Local/Programs/obsidian/Obsidian.exe",
+        "resposta": "respostas/abrindo-obsidian.wav"
+      },
+      {
+        "frases": ["abra o editor", "editor de codigo", "vs code"],
+        "acao": "abrir",
+        "alvo": "C:/Users/SEU-USUARIO/AppData/Local/Programs/Microsoft VS Code/Code.exe",
+        "resposta": "respostas/abrindo-editor.wav"
+      },
+      {
+        "frases": ["obrigado", "obrigada", "so isso", "e so isso", "valeu", "por enquanto e so"],
+        "acao": "fim",
+        "resposta": "respostas/por-nada.wav"
+      },
+      {
+        "frases": ["aprovar habilidade", "aprovar a habilidade", "pode aprovar a habilidade"],
+        "acao": "aprovar_habilidade"
+      },
+      {
+        "frases": ["pode descansar", "encerrar", "desligar", "ate logo", "boa noite"],
+        "acao": "sair",
+        "resposta": "respostas/desligando.wav"
+      }
+    ]
+  }
+}
