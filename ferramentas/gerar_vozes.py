@@ -1,30 +1,30 @@
 """
-Gera as falas do JARVIS em portugues com voz neural (edge-tts) e
-converte para .wav dentro da pasta 'vozes/'.
+Gera as falas fixas do JARVIS em portugues e salva como .wav nas pastas
+'vozes/' (palmas) e 'respostas/' (comandos de voz).
 
-Rode uma vez (precisa de internet):
-    python gerar_vozes.py
+v0.8: a voz vem da secao "tts" do config.json - OpenAI TTS (voz 'ash',
+grave e estilo mordomo; requer OPENAI_API_KEY no ambiente) ou edge-tts
+(gratis). Se a voz configurada MUDOU desde a ultima geracao, todas as
+falas sao regravadas sozinhas (marcador .assinatura-voz em cada pasta).
 
-Para mudar as frases ou a voz, edite as listas abaixo e rode de novo.
-Vozes masculinas em portugues disponiveis no edge-tts:
-    pt-BR-AntonioNeural  (Brasil)   <- padrao
-    pt-BR-FabioNeural    (Brasil)
-    pt-PT-DuarteNeural   (Portugal, mais formal/mordomo)
+Rode apos instalar ou ao trocar a voz (precisa de internet):
+    C:\\Python310\\python.exe ferramentas\\gerar_vozes.py
+
+Para mudar as frases, edite as listas abaixo e rode de novo.
 """
 
-import asyncio
-import subprocess
+import json
+import sys
 from pathlib import Path
 
-import edge_tts
-import imageio_ffmpeg
-
-VOZ = "pt-BR-AntonioNeural"
-# Raiz do projeto (este arquivo vive em ferramentas/)
+# Raiz do projeto (este arquivo vive em ferramentas/); o modulo da voz, em nucleo/
 BASE_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(BASE_DIR / "nucleo"))
+
+import tts  # noqa: E402  (precisa do sys.path acima)
+
 PASTA_VOZES = BASE_DIR / "vozes"
 PASTA_RESPOSTAS = BASE_DIR / "respostas"
-FFMPEG = imageio_ffmpeg.get_ffmpeg_exe()
 
 # Falas sorteadas ao bater duas palmas (pasta vozes/)
 FRASES = [
@@ -59,43 +59,60 @@ RESPOSTAS = [
 ]
 
 
-async def gerar_mp3(texto, caminho_mp3):
-    comunicador = edge_tts.Communicate(texto, VOZ, rate="-5%")
-    await comunicador.save(str(caminho_mp3))
+def carregar_config():
+    try:
+        with open(BASE_DIR / "config.json", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
 
 
-def mp3_para_wav(caminho_mp3, caminho_wav):
-    subprocess.run(
-        [FFMPEG, "-y", "-loglevel", "error", "-i", str(caminho_mp3),
-         "-ar", "44100", "-ac", "2", str(caminho_wav)],
-        check=True,
-    )
-    caminho_mp3.unlink(missing_ok=True)  # remove o mp3 temporario
-
-
-async def gerar_lote(pasta, frases, pular_existentes=True):
+def gerar_lote(pasta, frases, t):
     pasta.mkdir(exist_ok=True)
+    marcador = pasta / ".assinatura-voz"
+    assin = tts.assinatura(t)
+    try:
+        voz_mudou = marcador.read_text(encoding="utf-8") != assin
+    except OSError:
+        voz_mudou = True  # primeira geracao (ou marcador apagado)
+    if voz_mudou:
+        print("  (voz nova ou alterada - regravando todas as falas)")
+
+    erros = 0
     for nome, texto in frases:
-        mp3 = pasta / f"{nome}.mp3"
         wav = pasta / f"{nome}.wav"
-        if pular_existentes and wav.exists():
+        if wav.exists() and not voz_mudou:
             print(f"  [ja existe] {wav.name}")
             continue
         try:
-            await gerar_mp3(texto, mp3)
-            mp3_para_wav(mp3, wav)
+            # sem fallback: melhor um [erro] visivel do que gravar a
+            # fala fixa com a voz errada em silencio
+            tts.sintetizar(texto, t, wav, fallback=False)
             print(f"  [ok] {wav.name}  ->  \"{texto}\"")
         except Exception as e:
+            erros += 1
             print(f"  [erro] {nome}: {e}")
 
+    if erros == 0:
+        marcador.write_text(assin, encoding="utf-8")
+    return erros
 
-async def main():
-    print(f"Falas das palmas ({len(FRASES)}) com a voz '{VOZ}'...")
-    await gerar_lote(PASTA_VOZES, FRASES)
+
+def main():
+    t = tts.config_tts(carregar_config())
+    prov = t["provedor"]
+    print(f"Voz configurada: {prov} ({t[prov]['voz']})")
+
+    print(f"\nFalas das palmas ({len(FRASES)})...")
+    erros = gerar_lote(PASTA_VOZES, FRASES, t)
     print(f"\nRespostas dos comandos ({len(RESPOSTAS)})...")
-    await gerar_lote(PASTA_RESPOSTAS, RESPOSTAS)
-    print(f"\nPronto! Arquivos em: {PASTA_VOZES} e {PASTA_RESPOSTAS}")
+    erros += gerar_lote(PASTA_RESPOSTAS, RESPOSTAS, t)
+
+    if erros:
+        print(f"\n{erros} fala(s) falharam - corrija o problema e rode de novo.")
+    else:
+        print(f"\nPronto! Arquivos em: {PASTA_VOZES} e {PASTA_RESPOSTAS}")
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()

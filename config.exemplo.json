@@ -46,9 +46,22 @@
     "ativo": true,
     "modelo": "claude-sonnet-5",
     "max_historico": 6,
-    "voz": "pt-BR-AntonioNeural",
     "_cambio_info": "So para o 'quanto gastei?' dar uma nocao em reais (custos.json guarda em dolar).",
     "cambio_brl": 5.5
+  },
+
+  "_tts_info": "v0.8 - a VOZ do Jarvis. provedor 'openai' usa o TTS da OpenAI (voz 'onyx' no modelo tts-1-hd = grave, timbre de locutor; ~US$ 0,03 por minuto falado, incluido no 'quanto gastei?'). Requer chave: crie em https://platform.openai.com/api-keys e rode no SEU PowerShell: setx OPENAI_API_KEY \"sk-...\" (reinicie o Jarvis depois). Sem chave/internet/erro, a fala cai SOZINHA para o edge-tts (gratis, voz generica); provedor 'edge' usa direto o edge-tts. Trocou de voz? Rode ferramentas/gerar_vozes.py - ele detecta a mudanca e regrava as falas fixas. Modelos: tts-1-hd | tts-1 | gpt-4o-mini-tts (mais barato e aceita 'instrucoes' de estilo; os tts-1 ignoram). Vozes: alloy | ash | echo | fable | onyx | nova | shimmer (+ sage, coral, verse, ballad so no gpt-4o-mini-tts; ouca em openai.fm).",
+  "tts": {
+    "provedor": "openai",
+    "openai": {
+      "modelo": "tts-1-hd",
+      "voz": "onyx",
+      "instrucoes": "Fale portugues brasileiro nativo, sem nenhum sotaque estrangeiro, com voz calma, grave e polida, num tom formal e prestativo de mordomo."
+    },
+    "edge": {
+      "voz": "pt-BR-AntonioNeural",
+      "rate": "-5%"
+    }
   },
 
   "_deteccao_info": "v0.6 - analise_espectral: so aceita picos com cara de palma (transiente de banda larga), reduzindo falsos positivos de voz/musica/TV. min_agudos = fracao minima de energia acima de 2 kHz (0 a 1); min_crista = pico/RMS minimo. Rode 'Medir Volume.bat' para ver os valores das SUAS palmas; se elas forem rejeitadas, diminua os dois.",

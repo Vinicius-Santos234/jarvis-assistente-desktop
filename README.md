@@ -38,6 +38,7 @@ Sem chave de API ou sem internet, nada quebra: as camadas offline continuam func
    C:\Python310\python.exe ferramentas\gerar_vozes.py
    ```
 5. **Cérebro (opcional)** — defina a variável de ambiente `ANTHROPIC_API_KEY` para habilitar os pedidos livres via Claude. Opcionais também: `GROQ_API_KEY` (transcrição na nuvem, mais precisa) e Spotify Premium (play direto — Client ID no `config.json` + `Autorizar Spotify.bat`).
+6. **Voz premium (opcional)** — defina `OPENAI_API_KEY` para o Jarvis falar com a voz `onyx` da OpenAI (grave, timbre de locutor; ~US$ 0,03 por minuto falado) e rode o `gerar_vozes.py` de novo para regravar as falas fixas. Sem a chave, ele fala com o edge-tts (grátis). Voz, modelo e estilo ficam na seção `tts` do `config.json`.
 
 ## Uso
 
@@ -67,7 +68,7 @@ Jarvis/
 ## Custos e privacidade
 
 - A escuta contínua e a palavra de ativação rodam **inteiramente no seu computador**. Com a transcrição na nuvem ativada, **só a frase do comando** é enviada (Groq, grátis no uso pessoal); sem ela, tudo fica local (Whisper).
-- O cérebro usa a API do Claude, **paga por uso** (centavos por comando). O Jarvis registra o gasto diário — pergunte *"Jarvis, quanto gastei hoje?"*.
+- O cérebro usa a API do Claude, **paga por uso** (centavos por comando). A voz premium (OpenAI) também é paga por uso (~US$ 0,03/min falado) e cai sozinha para o edge-tts grátis se a chave faltar ou a API falhar. O Jarvis registra o gasto diário de tudo — pergunte *"Jarvis, quanto gastei hoje?"*.
 
 ## Roadmap
 

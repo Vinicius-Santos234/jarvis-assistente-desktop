@@ -24,6 +24,12 @@ CAMBIO_BRL_PADRAO = 5.5  # so para dar uma nocao em reais; ajuste no config
 # Fim do preco de lancamento do Sonnet 5 ($2/$10); depois vale $3/$15.
 _FIM_PRECO_LANCAMENTO_SONNET5 = date(2026, 8, 31)
 
+# v0.8 - voz (OpenAI TTS), USD por 1M de caracteres: tts-1-hd custa 30;
+# tts-1 e gpt-4o-mini-tts (~US$ 0,015/min, cobrado por token de audio -
+# por caractere e uma estimativa boa em portugues) custam ~15.
+PRECO_TTS_USD_1M_CHARS = 15.0
+PRECO_TTS_HD_USD_1M_CHARS = 30.0
+
 
 def _precos(modelo, quando=None):
     """(preco_entrada, preco_saida) em USD por 1M de tokens."""
@@ -95,6 +101,27 @@ def registrar(modelo, usage):
     return custo
 
 
+def registrar_tts(caracteres, modelo=""):
+    """Acumula UMA sintese de voz (OpenAI TTS) no dia de hoje.
+
+    Recebe o tamanho do texto falado; o custo e estimado por caractere,
+    conforme o modelo. Devolve o custo estimado em USD.
+    """
+    preco = PRECO_TTS_HD_USD_1M_CHARS if "hd" in (modelo or "").lower() \
+        else PRECO_TTS_USD_1M_CHARS
+    custo = caracteres * preco / 1_000_000
+    dados = _carregar()
+    dia = dados.setdefault("dias", {}).setdefault(date.today().isoformat(), {
+        "chamadas": 0, "entrada": 0, "saida": 0,
+        "cache_escrita": 0, "cache_leitura": 0, "custo_usd": 0.0,
+    })
+    dia["tts_falas"] = dia.get("tts_falas", 0) + 1
+    dia["tts_caracteres"] = dia.get("tts_caracteres", 0) + caracteres
+    dia["custo_usd"] = round(dia.get("custo_usd", 0.0) + custo, 6)
+    _salvar(dados)
+    return custo
+
+
 def _dias_do_periodo(periodo):
     """Lista de datas ISO que compoem o periodo pedido."""
     hoje = date.today()
@@ -117,7 +144,7 @@ def resumo(periodo="hoje"):
     if dias is None:
         dias = sorted(dados.keys())
 
-    chamadas = entrada = saida = 0
+    chamadas = entrada = saida = falas = 0
     custo = 0.0
     for d in dias:
         reg = dados.get(d)
@@ -127,12 +154,16 @@ def resumo(periodo="hoje"):
         entrada += reg.get("entrada", 0) + reg.get("cache_escrita", 0) \
             + reg.get("cache_leitura", 0)
         saida += reg.get("saida", 0)
+        falas += reg.get("tts_falas", 0)
         custo += reg.get("custo_usd", 0.0)
 
-    if chamadas == 0:
+    if chamadas == 0 and falas == 0:
         return f"Nenhum gasto registrado no periodo '{periodo}'."
 
     reais = custo * _cambio_brl()
-    return (f"Gasto no periodo '{periodo}': US$ {custo:.4f} "
-            f"(aproximadamente R$ {reais:.2f}) em {chamadas} chamada(s) a API. "
-            f"Tokens: {entrada} de entrada (incluindo cache), {saida} de saida.")
+    texto = (f"Gasto no periodo '{periodo}': US$ {custo:.4f} "
+             f"(aproximadamente R$ {reais:.2f}) em {chamadas} chamada(s) a API. "
+             f"Tokens: {entrada} de entrada (incluindo cache), {saida} de saida.")
+    if falas:
+        texto += f" Inclui {falas} fala(s) geradas pela voz OpenAI."
+    return texto

@@ -280,6 +280,9 @@ def falar(caminho_wav, interromper=None):
                 duracao = w.getnframes() / float(w.getframerate() or 1)
         except Exception:
             duracao = 30.0
+        # wav com cabecalho errado (ex.: tamanho "infinito" de streaming)
+        # nao pode travar a espera por horas
+        duracao = min(duracao, 300.0)
         interromper.clear()
         winsound.PlaySound(str(p), winsound.SND_FILENAME | winsound.SND_ASYNC)
         fim = time.monotonic() + duracao + 0.15
@@ -294,38 +297,37 @@ def falar(caminho_wav, interromper=None):
         return False
 
 
-def falar_dinamico(texto, voz="pt-BR-AntonioNeural", interromper=None):
-    """Gera a fala do texto na hora (edge-tts) e toca de forma sincrona.
+def falar_dinamico(texto, tts_cfg=None, interromper=None):
+    """Gera a fala do texto na hora e toca de forma sincrona.
 
-    Usa cache em respostas/cache/ para nao gerar duas vezes a mesma frase.
-    Levanta excecao se estiver sem internet - o chamador decide o fallback.
+    v0.8: a sintese vive em nucleo/tts.py - OpenAI TTS (voz com
+    personalidade) com fallback automatico para o edge-tts. Usa cache em
+    respostas/cache/ (chave = voz + texto) para nao gerar duas vezes a
+    mesma frase; se o fallback foi usado, o wav e guardado na chave do
+    edge, para a voz certa ser gerada quando a OpenAI voltar.
+    `tts_cfg` e o dict normalizado de tts.config_tts() (None = le o config).
+    Levanta excecao se nada gerar - o chamador decide o que fazer.
     Devolve True se a fala foi interrompida (ver falar()).
     """
-    import asyncio
     import hashlib
 
+    import tts
+
+    t = tts_cfg or tts.config_tts(carregar_config())
     pasta = BASE_DIR / "respostas" / "cache"
     pasta.mkdir(parents=True, exist_ok=True)
-    chave = hashlib.md5(f"{voz}|{texto}".encode("utf-8")).hexdigest()
-    wav = pasta / f"{chave}.wav"
 
+    def caminho(assin):
+        return pasta / (hashlib.md5(
+            f"{assin}|{texto}".encode("utf-8")).hexdigest() + ".wav")
+
+    wav = caminho(tts.assinatura(t))
     if not wav.is_file():
-        import edge_tts
-        import imageio_ffmpeg
-
-        mp3 = wav.with_suffix(".mp3")
-
-        async def gerar():
-            await edge_tts.Communicate(texto, voz, rate="-5%").save(str(mp3))
-
-        asyncio.run(gerar())
-        ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
-        subprocess.run(
-            [ffmpeg, "-y", "-loglevel", "error", "-i", str(mp3),
-             "-ar", "44100", "-ac", "2", str(wav)],
-            check=True,
-        )
-        mp3.unlink(missing_ok=True)
+        usado = tts.sintetizar(texto, t, wav)
+        if usado != t["provedor"]:
+            destino = caminho(tts.assinatura({**t, "provedor": "edge"}))
+            wav.replace(destino)
+            wav = destino
 
     return falar(wav, interromper)
 
@@ -562,9 +564,14 @@ class OuvinteVoz(threading.Thread):
             except Exception as e:
                 print(f"  [whisper] Desativado ({e}); usando so o Vosk.")
 
+        # v0.8 - a voz do Jarvis (OpenAI TTS 'ash' -> fallback edge-tts)
+        import tts as motor_tts
+        self.tts_cfg = motor_tts.config_tts(cfg)
+        prov = self.tts_cfg["provedor"]
+        print(f"  Voz: {prov} ({self.tts_cfg[prov]['voz']})")
+
         # v0.3 - cerebro (Claude). Opcional: sem SDK/chave, o Jarvis segue na v0.2.
         self.cerebro = None
-        self.voz_tts = cfg.get("cerebro", {}).get("voz", "pt-BR-AntonioNeural")
         if cfg.get("cerebro", {}).get("ativo", False):
             try:
                 from cerebro import Cerebro
@@ -830,7 +837,7 @@ class OuvinteVoz(threading.Thread):
         self.falando.set()
         cortada = False
         try:
-            cortada = falar_dinamico(texto, self.voz_tts,
+            cortada = falar_dinamico(texto, self.tts_cfg,
                                      self._evento_corte(texto))
         except Exception as e:
             print(f'  [voz] TTS indisponivel ({e}): "{texto}"')
