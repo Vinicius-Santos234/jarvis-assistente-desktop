@@ -10,7 +10,7 @@ Três camadas, da mais rápida para a mais inteligente:
 
 1. **Duas palmas** 👏 — abre seus sites e aplicativos favoritos. A detecção usa análise espectral para não disparar com voz, música ou TV.
 2. **Comandos fixos por voz** — offline, instantâneos e grátis (Vosk pt-BR): *"Jarvis, abra o navegador"*, *"pode descansar"*...
-3. **Pedidos livres → IA** — o que não casar com um comando fixo vai para o Claude, que interpreta a intenção (mesmo com transcrição distorcida), executa uma de suas **28 ferramentas** e responde com voz gerada na hora.
+3. **Pedidos livres → IA** — o que não casar com um comando fixo vai para o Claude, que interpreta a intenção (mesmo com transcrição distorcida), executa uma de suas **31 ferramentas** e responde com voz gerada na hora.
 
 Sem chave de API ou sem internet, nada quebra: as camadas offline continuam funcionando.
 
@@ -21,6 +21,7 @@ Sem chave de API ou sem internet, nada quebra: as camadas offline continuam func
 - **Computador** — volume do Windows, fechar programas, desligar/reiniciar/suspender
 - **Web** — abrir sites, vídeos no YouTube, pesquisas no Google
 - **Memória** — aprende fatos (*"lembra que..."*), atalhos novos por voz e até escreve scripts próprios (habilidades)
+- **Lembretes e timers** — *"me lembra em 20 minutos de tirar o bolo"*, *"me acorda às 15h"*; sobrevivem a reinícios e, se a hora passar com ele desligado, avisa o atraso no próximo boot
 - **Conversa natural** — modo conversa emenda pedidos sem repetir "Jarvis"; dizer "Jarvis!" por cima da fala dele o interrompe na hora
 
 **Travas de segurança:** ações destrutivas (apagar, mover, desligar, editar planilha) pedem *"Confirma, senhor?"* e só executam com o seu "sim". O acesso a arquivos é restrito às suas pastas de usuário. Habilidades novas só rodam depois de aprovadas por voz. Apagar nunca é definitivo — vai para a Lixeira.
@@ -38,7 +39,8 @@ Sem chave de API ou sem internet, nada quebra: as camadas offline continuam func
    C:\Python310\python.exe ferramentas\gerar_vozes.py
    ```
 5. **Cérebro (opcional)** — defina a variável de ambiente `ANTHROPIC_API_KEY` para habilitar os pedidos livres via Claude. Opcionais também: `GROQ_API_KEY` (transcrição na nuvem, mais precisa) e Spotify Premium (play direto — Client ID no `config.json` + `Autorizar Spotify.bat`).
-6. **Voz premium (opcional)** — defina `OPENAI_API_KEY` para o Jarvis falar com a voz `onyx` da OpenAI (grave, timbre de locutor; ~US$ 0,03 por minuto falado) e rode o `gerar_vozes.py` de novo para regravar as falas fixas. Sem a chave, ele fala com o edge-tts (grátis). Voz, modelo e estilo ficam na seção `tts` do `config.json`.
+6. **Voz premium (opcional)** — defina `OPENAI_API_KEY` para o Jarvis falar com a voz `onyx` da OpenAI (grave, timbre de locutor; paga por uso) e rode o `gerar_vozes.py` de novo para regravar as falas fixas. Sem a chave, ele fala com o edge-tts (grátis). Voz, modelo e estilo ficam na seção `tts` do `config.json`.
+7. **Ativação dedicada** — a palavra de ativação é detectada pelo **openWakeWord** (open source, offline, sem chave — modelo embutido "hey jarvis"): diga *"ei Jarvis"* / *"hey Jarvis"*. Já vem no `requirements.txt`; na primeira execução ele baixa os modelos (~7 MB, uma vez). O casamento aproximado via Vosk continua como reserva (o "Jarvis" seco segue funcionando). O limiar padrão já vem calibrado para a pronúncia brasileira; ajuste em `voz.wake_word.limiar` no `config.json` (menor = ativa mais fácil).
 
 ## Uso
 
@@ -50,7 +52,7 @@ Sem chave de API ou sem internet, nada quebra: as camadas offline continuam func
 | Iniciar junto com o Windows | `Instalar Inicializacao.bat` (uma vez) |
 | Calibrar palmas / microfone | `Medir Volume.bat` / `Medir Voz.bat` |
 
-Se ele não responder ao "Jarvis" (ou ativar sozinho), abra o console, veja o que aparece em `[voz] ouvi:` e ajuste `voz.similaridade_ativacao` no `config.json`.
+Se ele não responder ao "Jarvis" (ou ativar sozinho), abra o console, veja o que aparece em `[voz] ouvi:` e ajuste `voz.wake_word.limiar` (ativação dedicada) ou `voz.similaridade_ativacao` (reserva via Vosk) no `config.json`. Em segundo plano não há console, mas tudo fica registrado em `dados/jarvis.log` (rotativo).
 
 ## Estrutura do projeto
 
@@ -60,7 +62,7 @@ Jarvis/
 ├── config.json          → a SUA configuração (crie a partir do config.exemplo.json)
 ├── nucleo/              → o código do assistente
 ├── ferramentas/         → scripts de apoio (gerar vozes, calibrar, autorizar Spotify)
-├── dados/               → memória, custos e tokens (criado em uso; fora do git)
+├── dados/               → memória, custos, lembretes e logs (criado em uso; fora do git)
 ├── modelo-vosk/         → modelo de fala pt-BR (baixado na instalação)
 └── vozes/ respostas/    → áudios das falas (gerados na instalação)
 ```
@@ -72,8 +74,10 @@ Jarvis/
 
 ## Roadmap
 
+- [x] Timers e lembretes por voz
+- [x] Log em arquivo (`dados/jarvis.log`)
+- [x] Palavra de ativação dedicada (openWakeWord — o Porcupine ficou de fora: a Picovoice encerrou o plano grátis em 06/2026)
 - [ ] Aproveitar o resto da frase ao interromper ("Jarvis, para **e toca outra**")
-- [ ] Timers e lembretes por voz
 - [ ] Luzes inteligentes (aguardando hardware compatível)
 - [ ] **Versão 100% open source e sem custos** — substituir os serviços pagos (Claude, Groq) por modelos abertos rodando localmente, para que qualquer pessoa use o Jarvis completo de graça
 

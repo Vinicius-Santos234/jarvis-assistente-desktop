@@ -85,6 +85,11 @@ def supervisionar(comando, espera_seg=ESPERA_REINICIO_SEG,
 
 
 def main():
+    # v0.9 - log em arquivo proprio (dados/supervisor.log): o assistente
+    # tem o dele; dois processos no mesmo arquivo embaralhariam as linhas
+    import registro
+    registro.iniciar("supervisor")
+
     if not travar_instancia_unica():
         print("[supervisor] Ja ha um supervisor rodando; saindo.")
         sys.exit(0)

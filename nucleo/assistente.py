@@ -1,5 +1,11 @@
 """
-Jarvis v0.5 - Palmas + voz + cerebro (Claude) + Whisper + memoria + arquivos.
+Jarvis v0.9 - Palmas + voz + cerebro (Claude) + Whisper + memoria + arquivos.
+
+v0.9: log em arquivo (dados/jarvis.log - em segundo plano os prints
+sumiam), lembretes e timers por voz ("me lembra em 20 minutos de...",
+persistentes em dados/lembretes.json) e palavra de ativacao dedicada
+(openWakeWord, "hey/ei Jarvis" - open source, sem chave; com qualquer
+erro, segue via Vosk).
 
 v0.5: o cerebro mexe em arquivos por voz (listar, procurar, criar, ler,
 mover, apagar para a Lixeira, analisar CSV) - restrito as pastas do
@@ -511,17 +517,40 @@ class OuvinteVoz(threading.Thread):
         # silencio apos o unico "Um momento"; sem isto parece travamento.
         self.aviso_processando = float(v.get("aviso_processando_seg", 15.0))
 
+        # v0.9 - openWakeWord: palavra de ativacao dedicada (opcional).
+        # Detector de wake word de verdade ("hey/ei Jarvis"), open source
+        # e sem chave; com erro/pacote ausente, a ativacao segue 100% no
+        # casamento aproximado via Vosk (que continua de reserva sempre).
+        self.wake = None
+        self.wake_barge = None
+        wcfg = v.get("wake_word", {})
+        limiar_wake = float(wcfg.get("limiar", 0.1))
+        if bool(wcfg.get("ativo", True)):
+            try:
+                import ativacao
+                self.wake = ativacao.DetectorAtivacao(limiar_wake)
+            except Exception as e:
+                print(f"  [ativacao] openWakeWord indisponivel ({e}); "
+                      "ativacao via Vosk.")
+
         # v0.7 - interromper a fala: enquanto o Jarvis fala, o mic alimenta
-        # um SEGUNDO reconhecedor (gramatica minuscula: so a ativacao) - se
-        # ouvir "Jarvis" por cima, corta o audio e abre a escuta.
+        # um SEGUNDO detector - se ouvir "Jarvis" por cima, corta o audio e
+        # abre a escuta. v0.9: com openWakeWord ativo, ele assume o barge-in
+        # (segunda instancia; a de ativacao nao e thread-safe para dividir);
+        # senao, o reconhecedor Vosk de gramatica minuscula (apelidos).
         self.interromper_fala_evt = threading.Event()
         self.fila_barge = queue.Queue(maxsize=40)
+        self.rec_barge = None
         self.barge_ativo = bool(v.get("interromper_fala", True))
         if self.barge_ativo:
             try:
-                gram = sorted(BARGE_ALVOS) + ["[unk]"]
-                self.rec_barge = KaldiRecognizer(self.modelo, SAMPLERATE,
-                                                 json.dumps(gram))
+                if self.wake is not None:
+                    import ativacao
+                    self.wake_barge = ativacao.DetectorAtivacao(limiar_wake)
+                else:
+                    gram = sorted(BARGE_ALVOS) + ["[unk]"]
+                    self.rec_barge = KaldiRecognizer(self.modelo, SAMPLERATE,
+                                                     json.dumps(gram))
                 threading.Thread(target=self._escutar_barge,
                                  daemon=True).start()
             except Exception as e:
@@ -581,6 +610,14 @@ class OuvinteVoz(threading.Thread):
             except Exception as e:
                 print(f"  [cerebro] Desativado: {e}")
 
+        # v0.9 - lembretes: a vigia observa dados/lembretes.json e, na
+        # hora, fala a mensagem por esta voz (espera uma brecha antes)
+        import lembretes
+        lembretes.iniciar(self._falar_lembrete)
+        n_lemb = lembretes.pendentes()
+        if n_lemb:
+            print(f"  Lembretes pendentes: {n_lemb}")
+
     # ---------- reconhecimento ----------
 
     def run(self):
@@ -593,6 +630,16 @@ class OuvinteVoz(threading.Thread):
 
             try:
                 self.buffer_frase.append(dados)
+                # v0.9 - o openWakeWord ouve a ativacao bloco a bloco:
+                # dispara no meio da frase, antes de o Vosk fechar o texto
+                if self.wake is not None and self.estado == "OCIOSO":
+                    try:
+                        if self.wake.processar(dados):
+                            self._ativacao_dedicada()
+                    except Exception as e:
+                        print(f"  [ativacao] openWakeWord falhou ({e}); "
+                              "seguindo so com o Vosk.")
+                        self.wake = None
                 with self.rec_lock:
                     fechou = self.rec.AcceptWaveform(dados)
                     resultado = self.rec.Result() if fechou else ""
@@ -656,6 +703,16 @@ class OuvinteVoz(threading.Thread):
             self.estado = "COMANDO"
 
         if self.estado == "COMANDO":
+            # v0.9 - frase que e SO a palavra de ativacao ("Jarvis" e uma
+            # pausa): responde "Pois nao?" e segue ouvindo, em vez de
+            # mandar o nome solto ao cerebro. Comum com a ativacao
+            # dedicada (openWakeWord), que abre a escuta sem falar nada.
+            if len(norm.split()) <= 3 and \
+                    casar_ativacao(norm, self.ativacao, self.similaridade) == "":
+                self._falar_resposta("ativacao")
+                self.estado = "COMANDO"
+                self.prazo_comando = time.monotonic() + self.timeout_comando
+                return
             self.estado = "OCIOSO"
             acao, melhor = self._casar_ou_transcrever(norm, texto, audio)
             if acao is not None:
@@ -693,6 +750,19 @@ class OuvinteVoz(threading.Thread):
         self.estado = "COMANDO"
         self.prazo_comando = time.monotonic() + self.timeout_comando
         print(f"  [voz] Aguardando comando ({self.timeout_comando:.0f}s)...")
+
+    def _ativacao_dedicada(self):
+        """Ativacao pelo openWakeWord: abre a escuta SEM falar nada.
+
+        Se o pedido vier na mesma frase ("ei Jarvis, abre o GitHub"), o
+        Vosk fecha o texto em seguida e o estado COMANDO ja o processa
+        (falar "Pois nao?" agora atropelaria o resto da frase). Se vier
+        so "ei Jarvis", o COMANDO responde "Pois nao?" quando a frase
+        fechar - e o timeout devolve ao OCIOSO se nada vier.
+        """
+        print("  [ativacao] 'Jarvis' detectado (openWakeWord); ouvindo...")
+        self.estado = "COMANDO"
+        self.prazo_comando = time.monotonic() + self.timeout_comando
 
     def _casar_ou_transcrever(self, norm, texto, audio):
         """Tenta o comando fixo com o texto do Vosk (caminho instantaneo);
@@ -863,6 +933,11 @@ class OuvinteVoz(threading.Thread):
         self.buffer_frase.clear()
         with self.rec_lock:
             self.rec.Reset()
+        # sobras de quadros parciais do openWakeWord nao valem entre pausas
+        if self.wake is not None:
+            self.wake.resetar()
+        if self.wake_barge is not None:
+            self.wake_barge.resetar()
         self.falando.clear()
 
     # ---------- interromper a fala (v0.7) ----------
@@ -882,6 +957,17 @@ class OuvinteVoz(threading.Thread):
                 continue
             if not self.falando.is_set():
                 continue  # sobra de audio de depois da fala: descarta
+            # v0.9 - com openWakeWord, o barge-in usa o detector dedicado
+            if self.wake_barge is not None:
+                try:
+                    if self.wake_barge.processar(dados):
+                        print("  [voz] 'Jarvis' por cima da fala "
+                              "(openWakeWord) - cortando.")
+                        self.interromper_fala_evt.set()
+                        self.wake_barge.resetar()
+                except Exception:
+                    pass  # barge-in nunca derruba nada
+                continue
             try:
                 if self.rec_barge.AcceptWaveform(dados):
                     texto = json.loads(self.rec_barge.Result()).get("text", "")
@@ -904,7 +990,10 @@ class OuvinteVoz(threading.Thread):
         """
         if not self.barge_ativo:
             return None
-        if texto and set(normalizar(texto).split()) & BARGE_ALVOS:
+        # v0.9: com openWakeWord so a propria palavra "jarvis" dispara o
+        # corte; no caminho Vosk valem os apelidos foneticos
+        alvos = {"jarvis"} if self.wake_barge is not None else BARGE_ALVOS
+        if texto and set(normalizar(texto).split()) & alvos:
             return None
         return self.interromper_fala_evt
 
@@ -1020,6 +1109,24 @@ class OuvinteVoz(threading.Thread):
             self._falar_resposta("acao_falhou")
         self._abrir_conversa()
 
+    # ---------- lembretes (v0.9) ----------
+
+    def _falar_lembrete(self, texto):
+        """Fala um lembrete vencido (chamado pela thread vigia).
+
+        Espera uma brecha (Jarvis ocioso e calado) por ate 60 s para nao
+        atropelar uma conversa ou resposta em andamento; depois disso,
+        fala assim mesmo - lembrete atrasado e pior que interrupcao.
+        """
+        fim = time.monotonic() + 60.0
+        while time.monotonic() < fim and not ENCERRAR.is_set() and \
+                (self.estado != "OCIOSO" or self.falando.is_set()):
+            time.sleep(0.5)
+        if ENCERRAR.is_set():
+            return
+        print(f'  [lembrete] falando: "{texto}"')
+        self._falar_texto(texto)
+
     # ---------- fala ----------
 
     def _falar_resposta(self, chave):
@@ -1039,6 +1146,11 @@ class OuvinteVoz(threading.Thread):
 
 
 def main():
+    # v0.9 - log em arquivo: em segundo plano (pythonw) os prints somem;
+    # tudo que sai no console tambem vai para dados/jarvis.log
+    import registro
+    log_path = registro.iniciar("jarvis")
+
     if not travar_instancia_unica():
         print("O Jarvis JA ESTA RODANDO (em outra janela ou em segundo plano).")
         print('Duas instancias ouvem uma a outra e conversam sozinhas.')
@@ -1096,8 +1208,9 @@ def main():
                 pass  # reconhecimento atrasado: descarta o bloco
 
     print("=" * 55)
-    print("  JARVIS v0.5 - voz + cerebro + memoria + arquivos")
+    print("  JARVIS v0.9 - voz + cerebro + memoria + lembretes")
     print("=" * 55)
+    print(f"  Log              : {log_path}")
     print(f"  Limite de volume : {detector.limite}")
     print(f"  Intervalo palmas : {detector.min_gap}s a {detector.max_gap}s")
     print(f"  Cooldown         : {detector.cooldown}s")
@@ -1108,7 +1221,11 @@ def main():
     print(f"  Abas             : {len(cfg.get('abas_navegador', []))}")
     print(f"  Apps             : {len(cfg.get('aplicativos', []))}")
     if voz_ativa and ouvinte is not None:
-        print(f"  Ativacao por voz : {', '.join(voz_cfg.get('palavras_ativacao', ['jarvis']))}")
+        if ouvinte.wake is not None:
+            print("  Ativacao por voz : openWakeWord ('hey/ei jarvis')"
+                  " + Vosk de reserva")
+        else:
+            print(f"  Ativacao por voz : {', '.join(voz_cfg.get('palavras_ativacao', ['jarvis']))}")
         print(f"  Comandos de voz  : {len(voz_cfg.get('comandos', []))}")
         whisper_st = "ativo" if ouvinte.whisper is not None else "inativo"
         print(f"  Whisper (ingles) : {whisper_st}")

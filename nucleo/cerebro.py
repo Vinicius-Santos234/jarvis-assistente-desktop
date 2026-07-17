@@ -26,6 +26,7 @@ from pathlib import Path
 import aprendizado
 import arquivos
 import custos
+import lembretes
 
 # Raiz do projeto (este arquivo vive em nucleo/)
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -43,6 +44,30 @@ FERRAMENTAS_DESTRUTIVAS = {"esquecer", "apagar_arquivo", "mover_arquivo",
 class PedidoCancelado(Exception):
     """Levantada quando o usuario diz 'Jarvis, cancela' no meio do pedido."""
 
+
+# Palavras comuns do portugues (sem acento) - basta UMA na resposta para
+# ela passar na checagem de idioma. Escolhidas para nao existirem como
+# palavras usuais em ingles ("a", "no", "do" ficaram de fora por isso).
+_MARCADORES_PT = {
+    "o", "os", "um", "uma", "de", "da", "das", "dos", "que", "em", "na",
+    "nas", "por", "para", "com", "sem", "sim", "nao", "ja", "vou", "foi",
+    "estou", "esta", "aqui", "isso", "esse", "essa", "como", "seu", "sua",
+    "ao", "pode", "posso", "senhor", "feito", "pronto", "aberto", "aberta",
+    "tocando", "abrindo", "fechado", "confirma", "desculpe", "perdao",
+    "entendi", "repetir", "musica", "volume", "arquivo", "pasta",
+}
+
+
+def _parece_portugues(texto):
+    """Heuristica barata de idioma: acento tipico do portugues OU alguma
+    palavra comum da lista acima. Protege o cerebro de 'travar' em outro
+    idioma: uma resposta que nao passa aqui nao e falada nem entra no
+    historico (senao o modelo continuaria no idioma errado)."""
+    if re.search(r"[ãõçáéíóúâêôàü]", texto, re.IGNORECASE):
+        return True
+    palavras = re.findall(r"[a-z]+", texto.lower())
+    return any(p in _MARCADORES_PT for p in palavras)
+
 SISTEMA = """Você é JARVIS, o assistente de desktop do Vinícius, no estilo do mordomo do Homem de Ferro: educado, eficiente, levemente espirituoso, sempre tratando o usuário por "senhor".
 
 IMPORTANTE sobre a entrada: o texto chega de um reconhecimento de fala IMPERFEITO em português. Nomes estrangeiros vêm distorcidos foneticamente (ex.: "bó rêmian répisode" = "Bohemian Rhapsody", "cold plei" = "Coldplay", "iutubi" = "YouTube"). Interprete a INTENÇÃO por trás do texto, corrigindo esses nomes para a grafia certa antes de usá-los nas ferramentas.
@@ -54,6 +79,7 @@ Regras:
 - IMPORTANTE: você ouve TUDO que o microfone capta. Se o texto claramente NÃO é dirigido a você — conversa entre pessoas, TV/vídeo, música, alguém falando ao telefone, fala sem nenhum pedido ou pergunta para um assistente — responda EXATAMENTE "[IGNORAR]" (sem mais nada e sem usar ferramentas). Você ficará em silêncio. Se a frase menciona seu nome (Jarvis) ou é um pedido/pergunta plausível para um assistente, ela É dirigida a você.
 - NUNCA repita uma ação do histórico por iniciativa própria; só refaça algo se o pedido atual pedir isso explicitamente.
 - Sua resposta em texto será FALADA em voz alta: responda SEMPRE em 1 frase curta em português (máx. ~20 palavras), sem markdown, sem listas, sem emojis.
+- Responda SEMPRE em português do Brasil, sem exceção — mesmo que o pedido pareça estar em outro idioma (transcrição distorcida), mesmo que o histórico contenha outro idioma, mesmo que um resultado de ferramenta venha em outro idioma. NUNCA mude de idioma.
 - Se não entender mesmo após interpretar, diga que não entendeu e peça para repetir.
 
 MEMÓRIA E APRENDIZADO — você aprende entre sessões:
@@ -74,6 +100,8 @@ ARQUIVOS — você mexe nos arquivos das pastas do usuário (desktop, documentos
 - Ao FALAR sobre arquivos, diga só o nome e a pasta ("compras ponto txt, na área de trabalho"), NUNCA um caminho completo.
 
 GASTOS: quando o usuário perguntar quanto gastou (hoje, ontem, na semana, no mês ou no total), use 'consultar_gastos' e responda em UMA frase curta com o valor aproximado em reais (cite o valor em dólar só se ele pedir).
+
+LEMBRETES E TIMERS: quando o usuário pedir para lembrá-lo de algo, marcar um timer ou acordá-lo, use 'criar_lembrete' — converta você mesmo o tempo dito: "em 20 minutos" → em_segundos=1200; "às 15h" / "às 7 e meia" → horario="15:00" / "07:30" (dispara na PRÓXIMA ocorrência do horário: hoje se ainda não passou, senão amanhã). A mensagem será FALADA na hora certa; confirme repetindo a hora em uma frase curta. 'listar_lembretes' mostra os pendentes; 'cancelar_lembrete' remove por trecho da mensagem (ou 'todos').
 
 SISTEMA — controle do computador:
 - 'fechar_programa' fecha um app aberto de forma SUAVE (o app pode pedir para salvar). Só use forcar=true se o usuário mandar explicitamente forçar o fechamento.
@@ -421,6 +449,46 @@ FERRAMENTAS = [
                 "valor": {"type": "string", "description": "O valor a escrever (números viram números de verdade)"}
             },
             "required": ["caminho", "celula", "valor"],
+            "additionalProperties": False,
+        },
+    },
+    # v0.9 - lembretes e timers por voz
+    {
+        "name": "criar_lembrete",
+        "description": "Agenda um lembrete/timer FALADO: o Jarvis dirá a mensagem em voz alta na hora marcada. Use para 'me lembra em 20 minutos de X' (em_segundos=1200) ou 'me acorda às 15h' (horario='15:00'). Informe em_segundos OU horario.",
+        "strict": False,  # so 10 strict: compilacao da grammar da API estoura com muitas
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "mensagem": {"type": "string", "description": "O que falar na hora, curto e direto, ex.: 'tirar o bolo do forno'"},
+                "em_segundos": {"type": "integer", "description": "Daqui a quantos segundos falar (converta a duração dita: '20 minutos' = 1200)"},
+                "horario": {"type": "string", "description": "Horário 'HH:MM' (24h); dispara na PRÓXIMA ocorrência (hoje se ainda não passou, senão amanhã)"}
+            },
+            "required": ["mensagem"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "listar_lembretes",
+        "description": "Lista os lembretes/timers pendentes, com horário e mensagem. Use quando o usuário perguntar quais lembretes existem.",
+        "strict": False,  # so 10 strict: compilacao da grammar da API estoura com muitas
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "cancelar_lembrete",
+        "description": "Cancela lembrete(s) pendente(s) cuja mensagem contém o trecho dado (ex.: 'cancela o lembrete do bolo' -> trecho 'bolo'); 'todos' cancela todos.",
+        "strict": False,  # so 10 strict: compilacao da grammar da API estoura com muitas
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "trecho": {"type": "string", "description": "Trecho da mensagem do lembrete, ou 'todos'"}
+            },
+            "required": ["trecho"],
             "additionalProperties": False,
         },
     },
@@ -813,6 +881,15 @@ def executar_ferramenta(nome, entrada):
             except json.JSONDecodeError:
                 argumentos = {}
             return aprendizado.executar_habilidade(entrada["nome"], argumentos)
+        # v0.9 - lembretes e timers
+        if nome == "criar_lembrete":
+            return lembretes.criar(entrada["mensagem"],
+                                   entrada.get("em_segundos"),
+                                   entrada.get("horario"))
+        if nome == "listar_lembretes":
+            return lembretes.listar()
+        if nome == "cancelar_lembrete":
+            return lembretes.cancelar(entrada["trecho"])
         # v0.6 - controle do computador
         if nome == "fechar_programa":
             return executar_ferramenta.fechar_programa(
@@ -1028,5 +1105,10 @@ class Cerebro:
         if "[IGNORAR]" in resposta_final:
             # fala ambiente: nao entra no historico (nao polui o contexto)
             return "[IGNORAR]"
+        if not _parece_portugues(resposta_final):
+            # resposta em outro idioma: descartada ANTES do historico, senao
+            # as proximas respostas continuariam no idioma errado
+            print(f'  [cerebro] resposta fora do portugues, descartada: "{resposta_final}"')
+            return "Perdão, senhor, me confundi. Pode repetir?"
         self.historico.append((texto, resposta_final))
         return resposta_final

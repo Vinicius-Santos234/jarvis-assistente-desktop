@@ -54,7 +54,7 @@
   "tts": {
     "provedor": "openai",
     "openai": {
-      "modelo": "tts-1-hd",
+      "modelo": "gpt-4o-mini-tts",
       "voz": "onyx",
       "instrucoes": "Fale portugues brasileiro nativo, sem nenhum sotaque estrangeiro, com voz calma, grave e polida, num tom formal e prestativo de mordomo."
     },
@@ -83,6 +83,11 @@
     "_ativacao_info": "O modelo transcreve 'Jarvis' de formas variadas ('james', 'ja disse', 'jardins'...). Alem da lista exata abaixo, ha casamento APROXIMADO automatico: palavras que comecam com 'j', terminam em som de s/z e parecem com 'jarvis' (similaridade_ativacao, 0 a 1 - diminua se ele nao responder, aumente se ativar sozinho). Veja o que ele ouve em [voz] ouvi: no console.",
     "palavras_ativacao": ["jarvis", "jazz", "chaves"],
     "similaridade_ativacao": 0.4,
+    "_wake_word_info": "v0.9 - palavra de ativacao DEDICADA (openWakeWord: open source, offline, SEM chave): detector de wake word com o modelo embutido 'hey jarvis' - diga 'ei Jarvis' / 'hey Jarvis'; o casamento aproximado acima continua de reserva (o 'Jarvis' seco segue por la). Na primeira execucao baixa os modelos (~7 MB, uma vez). Tambem assume o barge-in ('Jarvis' por cima da fala). limiar: score 0 a 1 (MENOR = ativa mais facil). O padrao 0.1 e calibrado para a pronuncia BRASILEIRA de 'ei Jarvis' (pontua ~0.12-0.23; pronuncia inglesa nativa pontua ~1.0; conversa normal fica abaixo de 0.01, e um VAD interno corta ruido/musica). Se ativar sozinho, suba para 0.2-0.3; se nao ouvir, desca ate 0.06.",
+    "wake_word": {
+      "ativo": true,
+      "limiar": 0.1
+    },
     "timeout_comando_seg": 15.0,
     "_conversa_info": "modo_conversa: depois de cada resposta a janela reabre por janela_conversa_seg - da para emendar pedidos sem repetir 'Jarvis'. Diga 'obrigado' para encerrar.",
     "modo_conversa": true,

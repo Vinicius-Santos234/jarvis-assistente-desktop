@@ -17,3 +17,8 @@ pycaw
 openpyxl
 pypdf
 python-docx
+
+# v0.9 - palavra de ativacao dedicada (open source, sem chave;
+# baixa os modelos ~7 MB na primeira execucao)
+openwakeword==0.6.0
+onnxruntime
